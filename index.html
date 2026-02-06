@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>STFT Spectrogram Analyzer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: #fff;
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .subtitle {
+            text-align: center;
+            margin-bottom: 30px;
+            opacity: 0.9;
+            font-size: 1.1em;
+        }
+
+        .controls {
+            background: rgba(255, 255, 255, 0.15);
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 25px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        label {
+            font-weight: 600;
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        input[type="file"],
+        select,
+        input[type="range"] {
+            padding: 10px;
+            border-radius: 8px;
+            border: none;
+            background: rgba(255, 255, 255, 0.9);
+            color: #333;
+            font-size: 1em;
+        }
+
+        input[type="range"] {
+            cursor: pointer;
+        }
+
+        .range-value {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 5px 10px;
+            border-radius: 5px;
+            text-align: center;
+            font-size: 0.9em;
+        }
+
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: 600;
+            transition: transform 0.2s, box-shadow 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .canvas-container {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        canvas {
+            width: 100%;
+            height: auto;
+            border-radius: 10px;
+            display: block;
+            background: #000;
+        }
+
+        .info-panel {
+            background: rgba(255, 255, 255, 0.15);
+            padding: 20px;
+            border-radius: 15px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .info-item {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .info-label {
+            font-size: 0.85em;
+            opacity: 0.8;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .info-value {
+            font-size: 1.5em;
+            font-weight: 700;
+        }
+
+        .status {
+            text-align: center;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-size: 1.1em;
+        }
+
+        .error {
+            background: rgba(255, 0, 0, 0.3);
+        }
+
+        .success {
+            background: rgba(0, 255, 0, 0.3);
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 1.8em;
+            }
+            
+            .controls {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎵 STFT Spectrogram Analyzer</h1>
+        <p class="subtitle">Visualize how frequencies change over time</p>
+
+        <div class="controls">
+            <div class="control-group">
+                <label>Audio Source</label>
+                <select id="audioSource">
+                    <option value="file">Upload Audio File</option>
+                    <option value="microphone">Use Microphone</option>
+                    <option value="sine">Generate Sine Wave</option>
+                    <option value="chirp">Generate Chirp (Sweep)</option>
+                    <option value="music">Generate Musical Notes</option>
+                </select>
+            </div>
+
+            <div class="control-group" id="fileInputGroup">
+                <label>Upload Audio</label>
+                <input type="file" id="audioFile" accept="audio/*">
+            </div>
+
+            <div class="control-group">
+                <label>FFT Size (Window): <span class="range-value" id="fftValue">2048</span></label>
+                <input type="range" id="fftSize" min="256" max="8192" value="2048" step="256">
+            </div>
+
+            <div class="control-group">
+                <label>Hop Length: <span class="range-value" id="hopValue">512</span></label>
+                <input type="range" id="hopLength" min="128" max="2048" value="512" step="128">
+            </div>
+
+            <div class="control-group">
+                <label>Color Scheme</label>
+                <select id="colorScheme">
+                    <option value="viridis">Viridis</option>
+                    <option value="magma">Magma</option>
+                    <option value="plasma">Plasma</option>
+                    <option value="inferno">Inferno</option>
+                    <option value="rainbow">Rainbow</option>
+                    <option value="grayscale">Grayscale</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label>Frequency Scale</label>
+                <select id="freqScale">
+                    <option value="linear">Linear</option>
+                    <option value="log">Logarithmic</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="button-group">
+            <button id="analyzeBtn">🎯 Analyze Audio</button>
+            <button id="playBtn" disabled>▶️ Play Audio</button>
+            <button id="pauseBtn" disabled>⏸️ Pause</button>
+            <button id="recordBtn">🎤 Record (3s)</button>
+        </div>
+
+        <div id="status" class="status" style="display: none;"></div>
+
+        <div class="canvas-container">
+            <canvas id="waveformCanvas"></canvas>
+        </div>
+
+        <div class="canvas-container">
+            <canvas id="spectrogramCanvas"></canvas>
+        </div>
+
+        <div class="info-panel" id="infoPanel" style="display: none;">
+            <div class="info-item">
+                <div class="info-label">Sample Rate</div>
+                <div class="info-value" id="sampleRate">-</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">Duration</div>
+                <div class="info-value" id="duration">-</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">Time Resolution</div>
+                <div class="info-value" id="timeRes">-</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">Freq Resolution</div>
+                <div class="info-value" id="freqRes">-</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Audio context and variables
+        let audioContext;
+        let audioBuffer;
+        let audioSource;
+        let analyzerNode;
+        let isPlaying = false;
+
+        // Canvas references
+        const waveformCanvas = document.getElementById('waveformCanvas');
+        const spectrogramCanvas = document.getElementById('spectrogramCanvas');
+        const waveformCtx = waveformCanvas.getContext('2d');
+        const spectrogramCtx = spectrogramCanvas.getContext('2d');
+
+        // Color schemes
+        const colorSchemes = {
+            viridis: ['#440154', '#414487', '#2a788e', '#22a884', '#7ad151', '#fde725'],
+            magma: ['#000004', '#3b0f70', '#8c2981', '#de4968', '#fe9f6d', '#fcfdbf'],
+            plasma: ['#0d0887', '#5302a3', '#8b0aa5', '#b83289', '#db5c68', '#f48849', '#febd2a', '#f0f921'],
+            inferno: ['#000004', '#420a68', '#932667', '#dd513a', '#fca50a', '#fcffa4'],
+            rainbow: ['#9400D3', '#4B0082', '#0000FF', '#00FF00', '#FFFF00', '#FF7F00', '#FF0000'],
+            grayscale: ['#000000', '#404040', '#808080', '#C0C0C0', '#FFFFFF']
+        };
+
+        // Initialize
+        function init() {
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            
+            // Set canvas sizes
+            waveformCanvas.width = waveformCanvas.offsetWidth * 2;
+            waveformCanvas.height = 200;
+            spectrogramCanvas.width = spectrogramCanvas.offsetWidth * 2;
+            spectrogramCanvas.height = 600;
+
+            setupEventListeners();
+        }
+
+        function setupEventListeners() {
+            document.getElementById('audioSource').addEventListener('change', handleSourceChange);
+            document.getElementById('audioFile').addEventListener('change', handleFileUpload);
+            document.getElementById('analyzeBtn').addEventListener('click', analyzeAudio);
+            document.getElementById('playBtn').addEventListener('click', playAudio);
+            document.getElementById('pauseBtn').addEventListener('click', pauseAudio);
+            document.getElementById('recordBtn').addEventListener('click', recordAudio);
+            
+            document.getElementById('fftSize').addEventListener('input', (e) => {
+                document.getElementById('fftValue').textContent = e.target.value;
+            });
+            
+            document.getElementById('hopLength').addEventListener('input', (e) => {
+                document.getElementById('hopValue').textContent = e.target.value;
+            });
+        }
+
+        function handleSourceChange(e) {
+            const fileGroup = document.getElementById('fileInputGroup');
+            fileGroup.style.display = e.target.value === 'file' ? 'flex' : 'none';
+        }
+
+        function handleFileUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = async (event) => {
+                try {
+                    audioBuffer = await audioContext.decodeAudioData(event.target.result);
+                    showStatus('Audio loaded successfully!', 'success');
+                } catch (error) {
+                    showStatus('Error loading audio: ' + error.message, 'error');
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function generateSineWave(frequency = 440, duration = 3) {
+            const sampleRate = audioContext.sampleRate;
+            const length = sampleRate * duration;
+            const buffer = audioContext.createBuffer(1, length, sampleRate);
+            const data = buffer.getChannelData(0);
+
+            for (let i = 0; i < length; i++) {
+                data[i] = Math.sin(2 * Math.PI * frequency * i / sampleRate);
+            }
+
+            return buffer;
+        }
+
+        function generateChirp(duration = 3) {
+            const sampleRate = audioContext.sampleRate;
+            const length = sampleRate * duration;
+            const buffer = audioContext.createBuffer(1, length, sampleRate);
+            const data = buffer.getChannelData(0);
+
+            const f0 = 200;  // Start frequency
+            const f1 = 2000; // End frequency
+
+            for (let i = 0; i < length; i++) {
+                const t = i / sampleRate;
+                const freq = f0 + (f1 - f0) * (t / duration);
+                data[i] = Math.sin(2 * Math.PI * freq * t);
+            }
+
+            return buffer;
+        }
+
+        function generateMusic(duration = 3) {
+            const sampleRate = audioContext.sampleRate;
+            const length = sampleRate * duration;
+            const buffer = audioContext.createBuffer(1, length, sampleRate);
+            const data = buffer.getChannelData(0);
+
+            // C major chord: C4, E4, G4
+            const notes = [261.63, 329.63, 392.00];
+            
+            for (let i = 0; i < length; i++) {
+                const t = i / sampleRate;
+                let value = 0;
+                
+                notes.forEach(freq => {
+                    value += Math.sin(2 * Math.PI * freq * t) / notes.length;
+                });
+                
+                // Add some envelope
+                const envelope = Math.exp(-t * 0.5);
+                data[i] = value * envelope;
+            }
+
+            return buffer;
+        }
+
+        async function recordAudio() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                const mediaRecorder = new MediaRecorder(stream);
+                const chunks = [];
+
+                mediaRecorder.ondataavailable = (e) => chunks.push(e.data);
+                
+                mediaRecorder.onstop = async () => {
+                    const blob = new Blob(chunks, { type: 'audio/webm' });
+                    const arrayBuffer = await blob.arrayBuffer();
+                    audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                    showStatus('Recording complete! Click Analyze.', 'success');
+                    stream.getTracks().forEach(track => track.stop());
+                };
+
+                mediaRecorder.start();
+                showStatus('Recording... (3 seconds)', 'success');
+                
+                setTimeout(() => {
+                    mediaRecorder.stop();
+                }, 3000);
+
+            } catch (error) {
+                showStatus('Microphone access denied: ' + error.message, 'error');
+            }
+        }
+
+        function analyzeAudio() {
+            const source = document.getElementById('audioSource').value;
+
+            // Generate or use existing audio
+            if (source === 'sine') {
+                audioBuffer = generateSineWave(440, 3);
+            } else if (source === 'chirp') {
+                audioBuffer = generateChirp(3);
+            } else if (source === 'music') {
+                audioBuffer = generateMusic(3);
+            } else if (!audioBuffer) {
+                showStatus('Please load or generate audio first!', 'error');
+                return;
+            }
+
+            // Perform STFT analysis
+            const channelData = audioBuffer.getChannelData(0);
+            const fftSize = parseInt(document.getElementById('fftSize').value);
+            const hopLength = parseInt(document.getElementById('hopLength').value);
+
+            drawWaveform(channelData, audioBuffer.sampleRate);
+            const stftData = computeSTFT(channelData, fftSize, hopLength);
+            drawSpectrogram(stftData, audioBuffer.sampleRate, fftSize, hopLength);
+
+            // Update info panel
+            updateInfoPanel(audioBuffer.sampleRate, channelData.length, fftSize, hopLength);
+
+            // Enable playback
+            document.getElementById('playBtn').disabled = false;
+            showStatus('Analysis complete!', 'success');
+        }
+
+        function computeSTFT(signal, fftSize, hopLength) {
+            const numFrames = Math.floor((signal.length - fftSize) / hopLength) + 1;
+            const spectrogram = [];
+
+            for (let i = 0; i < numFrames; i++) {
+                const start = i * hopLength;
+                const frame = signal.slice(start, start + fftSize);
+                
+                // Apply Hanning window
+                const windowed = applyHanningWindow(frame);
+                
+                // Compute FFT
+                const fft = computeFFT(windowed);
+                
+                // Store magnitude
+                const magnitude = fft.map(c => Math.sqrt(c.real * c.real + c.imag * c.imag));
+                spectrogram.push(magnitude.slice(0, fftSize / 2));
+            }
+
+            return spectrogram;
+        }
+
+        function applyHanningWindow(frame) {
+            const n = frame.length;
+            const windowed = new Float32Array(n);
+            
+            for (let i = 0; i < n; i++) {
+                const window = 0.5 * (1 - Math.cos(2 * Math.PI * i / (n - 1)));
+                windowed[i] = frame[i] * window;
+            }
+            
+            return windowed;
+        }
+
+        function computeFFT(signal) {
+            const n = signal.length;
+            const fft = new Array(n);
+            
+            // Initialize
+            for (let i = 0; i < n; i++) {
+                fft[i] = { real: signal[i], imag: 0 };
+            }
+            
+            // Bit reversal
+            const bits = Math.log2(n);
+            for (let i = 0; i < n; i++) {
+                const rev = reverseBits(i, bits);
+                if (rev > i) {
+                    [fft[i], fft[rev]] = [fft[rev], fft[i]];
+                }
+            }
+            
+            // Cooley-Tukey FFT
+            for (let size = 2; size <= n; size *= 2) {
+                const halfSize = size / 2;
+                const step = 2 * Math.PI / size;
+                
+                for (let i = 0; i < n; i += size) {
+                    for (let j = 0; j < halfSize; j++) {
+                        const angle = step * j;
+                        const wr = Math.cos(angle);
+                        const wi = -Math.sin(angle);
+                        
+                        const tr = wr * fft[i + j + halfSize].real - wi * fft[i + j + halfSize].imag;
+                        const ti = wr * fft[i + j + halfSize].imag + wi * fft[i + j + halfSize].real;
+                        
+                        fft[i + j + halfSize].real = fft[i + j].real - tr;
+                        fft[i + j + halfSize].imag = fft[i + j].imag - ti;
+                        
+                        fft[i + j].real += tr;
+                        fft[i + j].imag += ti;
+                    }
+                }
+            }
+            
+            return fft;
+        }
+
+        function reverseBits(num, bits) {
+            let result = 0;
+            for (let i = 0; i < bits; i++) {
+                result = (result << 1) | (num & 1);
+                num >>= 1;
+            }
+            return result;
+        }
+
+        function drawWaveform(data, sampleRate) {
+            const width = waveformCanvas.width;
+            const height = waveformCanvas.height;
+            
+            waveformCtx.fillStyle = '#000';
+            waveformCtx.fillRect(0, 0, width, height);
+            
+            waveformCtx.strokeStyle = '#00ff00';
+            waveformCtx.lineWidth = 2;
+            waveformCtx.beginPath();
+            
+            const step = Math.ceil(data.length / width);
+            const amp = height / 2;
+            
+            for (let i = 0; i < width; i++) {
+                const idx = i * step;
+                const y = amp + (data[idx] || 0) * amp;
+                
+                if (i === 0) {
+                    waveformCtx.moveTo(i, y);
+                } else {
+                    waveformCtx.lineTo(i, y);
+                }
+            }
+            
+            waveformCtx.stroke();
+            
+            // Draw center line
+            waveformCtx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+            waveformCtx.lineWidth = 1;
+            waveformCtx.beginPath();
+            waveformCtx.moveTo(0, amp);
+            waveformCtx.lineTo(width, amp);
+            waveformCtx.stroke();
+        }
+
+        function drawSpectrogram(stftData, sampleRate, fftSize, hopLength) {
+            const width = spectrogramCanvas.width;
+            const height = spectrogramCanvas.height;
+            const freqScale = document.getElementById('freqScale').value;
+            
+            spectrogramCtx.fillStyle = '#000';
+            spectrogramCtx.fillRect(0, 0, width, height);
+            
+            if (stftData.length === 0) return;
+            
+            // Convert to dB and find range
+            const dbData = stftData.map(frame => 
+                frame.map(mag => 20 * Math.log10(mag + 1e-10))
+            );
+            
+            const allValues = dbData.flat();
+            const maxDb = Math.max(...allValues);
+            const minDb = maxDb - 80; // 80 dB dynamic range
+            
+            const numFrames = dbData.length;
+            const numBins = dbData[0].length;
+            
+            const cellWidth = width / numFrames;
+            const cellHeight = height / numBins;
+            
+            const scheme = colorSchemes[document.getElementById('colorScheme').value];
+            
+            for (let t = 0; t < numFrames; t++) {
+                for (let f = 0; f < numBins; f++) {
+                    const db = dbData[t][f];
+                    const normalized = Math.max(0, Math.min(1, (db - minDb) / (maxDb - minDb)));
+                    
+                    const color = getColor(normalized, scheme);
+                    spectrogramCtx.fillStyle = color;
+                    
+                    const x = t * cellWidth;
+                    let y;
+                    
+                    if (freqScale === 'log') {
+                        const logF = Math.log(f + 1) / Math.log(numBins);
+                        y = height - logF * height;
+                    } else {
+                        y = height - (f / numBins) * height;
+                    }
+                    
+                    spectrogramCtx.fillRect(x, y, Math.ceil(cellWidth) + 1, Math.ceil(cellHeight) + 1);
+                }
+            }
+            
+            // Draw frequency labels
+            drawFrequencyLabels(sampleRate, fftSize, freqScale);
+        }
+
+        function getColor(value, scheme) {
+            const idx = value * (scheme.length - 1);
+            const lower = Math.floor(idx);
+            const upper = Math.ceil(idx);
+            const t = idx - lower;
+            
+            if (lower === upper) return scheme[lower];
+            
+            const c1 = hexToRgb(scheme[lower]);
+            const c2 = hexToRgb(scheme[upper]);
+            
+            const r = Math.round(c1.r + (c2.r - c1.r) * t);
+            const g = Math.round(c1.g + (c2.g - c1.g) * t);
+            const b = Math.round(c1.b + (c2.b - c1.b) * t);
+            
+            return `rgb(${r}, ${g}, ${b})`;
+        }
+
+        function hexToRgb(hex) {
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? {
+                r: parseInt(result[1], 16),
+                g: parseInt(result[2], 16),
+                b: parseInt(result[3], 16)
+            } : { r: 0, g: 0, b: 0 };
+        }
+
+        function drawFrequencyLabels(sampleRate, fftSize, scale) {
+            const height = spectrogramCanvas.height;
+            const maxFreq = sampleRate / 2;
+            
+            spectrogramCtx.fillStyle = '#fff';
+            spectrogramCtx.font = '16px monospace';
+            spectrogramCtx.textAlign = 'left';
+            
+            const freqs = [100, 500, 1000, 2000, 5000, 10000];
+            
+            freqs.forEach(freq => {
+                if (freq > maxFreq) return;
+                
+                let y;
+                if (scale === 'log') {
+                    const binNum = freq / (sampleRate / fftSize);
+                    const logF = Math.log(binNum + 1) / Math.log(fftSize / 2);
+                    y = height - logF * height;
+                } else {
+                    y = height - (freq / maxFreq) * height;
+                }
+                
+                spectrogramCtx.fillText(freq >= 1000 ? `${freq/1000}k` : freq, 10, y);
+                
+                // Draw grid line
+                spectrogramCtx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+                spectrogramCtx.beginPath();
+                spectrogramCtx.moveTo(0, y);
+                spectrogramCtx.lineTo(spectrogramCanvas.width, y);
+                spectrogramCtx.stroke();
+            });
+        }
+
+        function updateInfoPanel(sampleRate, length, fftSize, hopLength) {
+            document.getElementById('infoPanel').style.display = 'grid';
+            document.getElementById('sampleRate').textContent = `${sampleRate} Hz`;
+            document.getElementById('duration').textContent = `${(length / sampleRate).toFixed(2)}s`;
+            document.getElementById('timeRes').textContent = `${(hopLength / sampleRate * 1000).toFixed(1)} ms`;
+            document.getElementById('freqRes').textContent = `${(sampleRate / fftSize).toFixed(1)} Hz`;
+        }
+
+        function playAudio() {
+            if (isPlaying) return;
+            
+            audioSource = audioContext.createBufferSource();
+            audioSource.buffer = audioBuffer;
+            audioSource.connect(audioContext.destination);
+            audioSource.start();
+            
+            isPlaying = true;
+            document.getElementById('playBtn').disabled = true;
+            document.getElementById('pauseBtn').disabled = false;
+            
+            audioSource.onended = () => {
+                isPlaying = false;
+                document.getElementById('playBtn').disabled = false;
+                document.getElementById('pauseBtn').disabled = true;
+            };
+        }
+
+        function pauseAudio() {
+            if (audioSource) {
+                audioSource.stop();
+                isPlaying = false;
+                document.getElementById('playBtn').disabled = false;
+                document.getElementById('pauseBtn').disabled = true;
+            }
+        }
+
+        function showStatus(message, type) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = 'status ' + type;
+            status.style.display = 'block';
+            
+            setTimeout(() => {
+                status.style.display = 'none';
+            }, 3000);
+        }
+
+        // Initialize on load
+        window.addEventListener('load', init);
+    </script>
+</body>
+</html>
